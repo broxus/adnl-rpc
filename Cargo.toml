@@ -12,3 +12,7 @@ serde = "1.0.125"
 serde_json = "1.0.64"
 tokio = "1.5.0"
 warp = "0.3.1"
+bb8 = "0.7.0"
+
+adnl = {git ="git://github.com/0xdeafbeef/ton-labs-adnl.git"}
+async-trait = "0.1.50"
