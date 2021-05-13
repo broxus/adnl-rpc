@@ -1,4 +1,5 @@
 use adnl::client::AdnlClientConfig;
+use bb8::Pool;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use serde::Deserialize;
@@ -10,16 +11,19 @@ use crate::config::Config;
 use crate::ton::adnl_pool::AdnlConnectionManager;
 
 pub struct State {
-    adnl: AdnlConnectionManager,
+    adnl: Pool<AdnlConnectionManager>,
 }
 
 impl State {
-    pub fn new(config: Config) -> Self {
-        Self {
-            adnl: AdnlConnectionManager::connect(
+    pub async fn new(config: Config) -> Self {
+        let builder = Pool::builder();
+        let adnl = builder
+            .build(AdnlConnectionManager::connect(
                 AdnlClientConfig::from_json_config(config.adnl_config).expect("wrong config"),
-            ),
-        }
+            ))
+            .await
+            .unwrap();
+        Self { adnl }
     }
 }
 

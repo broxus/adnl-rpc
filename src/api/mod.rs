@@ -44,7 +44,7 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
 
 pub async fn serve(config: Config) {
     let address = config.listen_address.clone();
-    let state = Arc::new(State::new(config));
+    let state = Arc::new(State::new(config).await);
 
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
