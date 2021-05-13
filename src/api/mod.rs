@@ -1,4 +1,5 @@
 pub mod service;
+pub mod state;
 
 use std::convert::Infallible;
 use std::sync::Arc;
@@ -16,10 +17,9 @@ use warp_json_rpc::filters as json_rpc;
 use crate::config::Config;
 use crate::models::Message;
 use service::*;
+pub use state::*;
 
 const RPC_API_PATH: &str = "rpc";
-
-type State = Arc<()>;
 
 // This is a workaround for not being able to create a `warp_json_rpc::Response` without a
 // `warp_json_rpc::Builder`.
@@ -46,7 +46,7 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
 }
 
 pub async fn serve(config: Config) {
-    let state = Arc::new(State::new(()));
+    let state = Arc::new(State {});
 
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
@@ -133,5 +133,16 @@ pub fn max_transactions_per_fetch(state: Arc<State>) -> BoxedFilter<(impl warp::
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("max_transactions_per_fetch"))
         .and_then(service::max_transactions_per_fetch)
+        .boxed()
+}
+
+pub fn ws_stream(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path::path("stream")
+        .and(warp::path::end())
+        .map(move || state.clone())
+        .and(warp::ws())
+        .map(|state: Arc<State>, ws: warp::ws::Ws| {
+            ws.on_upgrade(move |websocket| async move { state.add_connection(websocket).await })
+        })
         .boxed()
 }
