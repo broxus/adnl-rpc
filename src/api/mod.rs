@@ -8,16 +8,12 @@ use futures::future;
 use http::Response;
 use hyper::Body;
 use serde::Serialize;
-use ton_block::MsgAddress;
 use warp::filters::BoxedFilter;
 use warp::http::StatusCode;
-use warp::{Filter, Rejection, Reply};
+use warp::{Filter, Rejection};
 use warp_json_rpc::filters as json_rpc;
 
 use crate::config::Config;
-use crate::models::Message;
-use crate::ton::adnl_pool::AdnlConnectionManager;
-use service::*;
 pub use state::*;
 
 const RPC_API_PATH: &str = "rpc";
@@ -93,7 +89,7 @@ pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)>
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("get_contract_state"))
-        .and(json_rpc::params::<(String)>())
+        .and(json_rpc::params::<String>())
         .and_then(service::get_contract_state)
         .boxed()
 }

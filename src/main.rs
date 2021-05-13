@@ -1,7 +1,6 @@
 use adnl_rpc::config::Config;
-use adnl_rpc::*;
 use log::LevelFilter;
-use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
+use std::net::{Ipv4Addr, SocketAddrV4};
 
 #[tokio::main]
 async fn main() {
