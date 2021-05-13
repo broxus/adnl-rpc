@@ -1,3 +1,5 @@
+pub mod service;
+
 use std::convert::Infallible;
 use std::sync::Arc;
 
@@ -6,13 +8,14 @@ use http::Response;
 use hyper::Body;
 use serde::Serialize;
 use ton_block::MsgAddress;
+use warp::filters::BoxedFilter;
 use warp::http::StatusCode;
 use warp::{Filter, Rejection, Reply};
 use warp_json_rpc::filters as json_rpc;
-use warp_json_rpc::Builder;
 
 use crate::config::Config;
 use crate::models::Message;
+use service::*;
 
 const RPC_API_PATH: &str = "rpc";
 
@@ -43,8 +46,7 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
 }
 
 pub async fn serve(config: Config) {
-    let state = State::new(());
-    let state = warp::any().map(move || Arc::clone(&state));
+    let state = Arc::new(State::new(()));
 
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
@@ -59,14 +61,14 @@ pub async fn serve(config: Config) {
         Ok::<_, Rejection>(error_response)
     });
 
-    let send = warp::path(RPC_API_PATH)
-        .and(state.clone())
-        .and(json_rpc::json_rpc())
-        .and(json_rpc::method("send"))
-        .and(json_rpc::params::<(String, String)>())
-        .and_then(send_message);
-
-    let routes = send.or(unknown_method).or(parse_failure);
+    let routes = send_message(state.clone())
+        .or(get_contract_state(state.clone()))
+        .or(get_transactions(state.clone()))
+        .or(get_latest_key_block(state.clone()))
+        .or(get_blockchain_config(state.clone()))
+        .or(max_transactions_per_fetch(state.clone()))
+        .or(unknown_method)
+        .or(parse_failure);
 
     let service = warp_json_rpc::service(routes);
     let make_svc =
@@ -77,11 +79,59 @@ pub async fn serve(config: Config) {
         .unwrap();
 }
 
-async fn send_message(
-    state: State,
-    res: Builder,
-    (msg, addr): (String, String),
-) -> Result<impl Reply, Infallible> {
-    log::info!("Got send_message request. Msg={},Addr={}", msg, addr);
-    Ok(res.success("lol").unwrap())
+pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("send_message"))
+        .and(json_rpc::params::<(String, String)>())
+        .and_then(service::send_message)
+        .boxed()
+}
+
+pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("get_contract_state"))
+        .and(json_rpc::params::<(String)>())
+        .and_then(service::get_contract_state)
+        .boxed()
+}
+
+pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("get_transactions"))
+        .and(json_rpc::params::<(String, String, u8)>())
+        .and_then(service::get_transactions)
+        .boxed()
+}
+
+pub fn get_latest_key_block(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("get_latest_key_block"))
+        .and_then(service::get_latest_key_block)
+        .boxed()
+}
+
+pub fn get_blockchain_config(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("get_blockchain_config"))
+        .and_then(service::get_blockchain_config)
+        .boxed()
+}
+
+pub fn max_transactions_per_fetch(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("max_transactions_per_fetch"))
+        .and_then(service::max_transactions_per_fetch)
+        .boxed()
 }
