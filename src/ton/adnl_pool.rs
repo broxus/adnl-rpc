@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use bb8::PooledConnection;
 use std::ops::DerefMut;
 
-pub struct AdnlConnectionManager {
+pub struct AdnlManageConnection {
     inner: AdnlClient,
 }
 
-impl AdnlConnectionManager {
+impl AdnlManageConnection {
     pub fn connect(config: AdnlClientConfig) -> Self {
         Self {
             inner: AdnlClient::new(config),
@@ -17,7 +17,7 @@ impl AdnlConnectionManager {
 }
 
 #[async_trait]
-impl bb8::ManageConnection for AdnlConnectionManager {
+impl bb8::ManageConnection for AdnlManageConnection {
     type Connection = AdnlConnection;
     type Error = Error;
 

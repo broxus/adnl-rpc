@@ -8,22 +8,22 @@ use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
 use crate::config::Config;
-use crate::ton::adnl_pool::AdnlConnectionManager;
+use crate::ton::adnl_pool::AdnlManageConnection;
 
 pub struct State {
-    adnl: Pool<AdnlConnectionManager>,
+    pub pool: Pool<AdnlManageConnection>,
 }
 
 impl State {
     pub async fn new(config: Config) -> Self {
         let builder = Pool::builder();
-        let adnl = builder
-            .build(AdnlConnectionManager::connect(
+        let pool = builder
+            .build(AdnlManageConnection::connect(
                 AdnlClientConfig::from_json_config(config.adnl_config).expect("wrong config"),
             ))
             .await
             .unwrap();
-        Self { adnl }
+        Self { pool }
     }
 }
 

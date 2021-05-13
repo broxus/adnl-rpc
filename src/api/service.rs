@@ -2,16 +2,21 @@ use std::convert::Infallible;
 use std::sync::Arc;
 
 use warp::Reply;
-use warp_json_rpc::Builder;
+use warp_json_rpc::{Builder, Error};
 
 use crate::api::State;
 
 pub(crate) async fn send_message(
-    _state: Arc<State>,
+    state: Arc<State>,
     res: Builder,
     (msg, addr): (String, String),
 ) -> Result<impl Reply, Infallible> {
     log::info!("Got send_message request. Msg={},Addr={}", msg, addr);
+    let mut connection = match state.pool.get().await {
+        Ok(conn) => conn,
+        Err(e) => return Ok(res.error(Error::custom(1, "connection error")).unwrap()),
+    };
+    connection.query(&Default::default()).await.unwrap();
     Ok(res.success("lol").unwrap())
 }
 
