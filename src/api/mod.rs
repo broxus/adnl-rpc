@@ -15,6 +15,7 @@ use warp_json_rpc::filters as json_rpc;
 use anyhow::Result;
 use crate::config::Config;
 pub use state::*;
+use crate::models::{Message, Address, TransactionId};
 
 const RPC_API_PATH: &str = "rpc";
 
@@ -80,7 +81,7 @@ pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("send_message"))
-        .and(json_rpc::params::<(String, String)>())
+        .and(json_rpc::params::<(Message)>())
         .and_then(service::send_message)
         .boxed()
 }
@@ -90,7 +91,7 @@ pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)>
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("get_contract_state"))
-        .and(json_rpc::params::<String>())
+        .and(json_rpc::params::<Address>())
         .and_then(service::get_contract_state)
         .boxed()
 }
@@ -100,7 +101,7 @@ pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("get_transactions"))
-        .and(json_rpc::params::<(String, String, u8)>())
+        .and(json_rpc::params::<(Address, TransactionId, u8)>())
         .and_then(service::get_transactions)
         .boxed()
 }
