@@ -1,4 +1,3 @@
-use adnl::client::AdnlClientConfig;
 use bb8::Pool;
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -7,6 +6,7 @@ use serde::Serialize;
 use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
+use anyhow::Result;
 use crate::config::Config;
 use crate::ton::adnl_pool::AdnlManageConnection;
 
@@ -15,15 +15,17 @@ pub struct State {
 }
 
 impl State {
-    pub async fn new(config: Config) -> Self {
+    pub async fn new(config: Config) -> Result<Self> {
         let builder = Pool::builder();
         let pool = builder
+            .max_size(100)
+            .min_idle(Some(5))
+            .max_lifetime(None)
             .build(AdnlManageConnection::connect(
-                AdnlClientConfig::from_json_config(config.adnl_config).expect("wrong config"),
+                config.adnl_config.tonlib_config()?
             ))
-            .await
-            .unwrap();
-        Self { pool }
+            .await?;
+        Ok(Self { pool })
     }
 }
 

@@ -12,7 +12,7 @@ use warp::filters::BoxedFilter;
 use warp::http::StatusCode;
 use warp::{Filter, Rejection};
 use warp_json_rpc::filters as json_rpc;
-
+use anyhow::Result;
 use crate::config::Config;
 pub use state::*;
 
@@ -42,9 +42,9 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
         .unwrap()
 }
 
-pub async fn serve(config: Config) {
+pub async fn serve(config: Config) ->Result<()>{
     let address = config.listen_address.clone();
-    let state = Arc::new(State::new(config).await);
+    let state = Arc::new(State::new(config).await?);
 
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
@@ -71,7 +71,8 @@ pub async fn serve(config: Config) {
     let service = warp_json_rpc::service(routes);
     let make_svc =
         hyper::service::make_service_fn(move |_| future::ok::<_, Infallible>(service.clone()));
-    hyper::Server::bind(&address).serve(make_svc).await.unwrap();
+    hyper::Server::bind(&address).serve(make_svc).await?;
+    Ok(())
 }
 
 pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
