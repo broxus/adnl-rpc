@@ -16,6 +16,7 @@ use warp_json_rpc::filters as json_rpc;
 
 use crate::config::Config;
 use crate::models::Message;
+use crate::ton::adnl_pool::AdnlConnectionManager;
 use service::*;
 pub use state::*;
 
@@ -46,7 +47,8 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
 }
 
 pub async fn serve(config: Config) {
-    let state = Arc::new(State {});
+    let address = config.listen_address.clone();
+    let state = Arc::new(State::new(config));
 
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
@@ -73,10 +75,7 @@ pub async fn serve(config: Config) {
     let service = warp_json_rpc::service(routes);
     let make_svc =
         hyper::service::make_service_fn(move |_| future::ok::<_, Infallible>(service.clone()));
-    hyper::Server::bind(&config.listen_address)
-        .serve(make_svc)
-        .await
-        .unwrap();
+    hyper::Server::bind(&address).serve(make_svc).await.unwrap();
 }
 
 pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {

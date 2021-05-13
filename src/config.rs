@@ -1,6 +1,7 @@
+use adnl::client::AdnlClientConfigJson;
 use std::net::SocketAddr;
 
-#[derive(Debug, Clone)]
 pub struct Config {
     pub listen_address: SocketAddr,
+    pub adnl_config: AdnlClientConfigJson,
 }
