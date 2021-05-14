@@ -2,7 +2,6 @@ pub mod service;
 pub mod state;
 
 use std::convert::Infallible;
-use std::sync::Arc;
 
 use crate::config::Config;
 use crate::models::{Address, Message, TransactionId};
@@ -73,6 +72,9 @@ pub async fn serve(config: Config) -> Result<()> {
     let make_svc =
         hyper::service::make_service_fn(move |_| future::ok::<_, Infallible>(service.clone()));
     hyper::Server::bind(&address).serve(make_svc).await?;
+
+    tokio::spawn(state.transaction_monitoring());
+
     Ok(())
 }
 
@@ -81,7 +83,7 @@ pub fn send_message(state: State) -> BoxedFilter<(impl warp::Reply,)> {
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("send_message"))
-        .and(json_rpc::params::<(Message)>())
+        .and(json_rpc::params::<Message>())
         .and_then(service::send_message)
         .boxed()
 }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use ton_block::{BlockExtra, BlockInfo, ChildCell, MerkleUpdate, MsgAddressInt, ValueFlow};
 use ton_types::UInt256;
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Address {
     #[serde(with = "serde_address")]
     inner: MsgAddressInt,
