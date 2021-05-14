@@ -72,9 +72,16 @@ impl State {
                         .await
                         .is_err()
                     {
-                        if let Some(hash) = self.addresses_callbacks.write().await.get_mut(&address)
+                        let is_empty = if let Some(hash) =
+                            self.addresses_callbacks.write().await.get_mut(&address)
                         {
                             hash.remove(&id);
+                            hash.is_empty()
+                        } else {
+                            false
+                        };
+                        if is_empty {
+                            self.addresses_callbacks.write().await.remove(&address);
                         }
                     }
                 }
