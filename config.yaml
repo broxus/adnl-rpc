@@ -1,0 +1,21 @@
+---
+listen_address: "127.0.0.1:9000"
+logger_settings:
+  appenders:
+    stdout:
+      kind: console
+      encoder:
+        pattern: "{d(%Y-%m-%d %H:%M:%S %Z)(utc)} - {h({l})} {M} {f}:{L} = {m} {n}"
+  root:
+    level: error
+    appenders:
+      - stdout
+  loggers:
+    adnl_rpc:
+      level: debug
+      appenders:
+        - stdout
+      additive: false
+adnl_config:
+  server_address: "54.158.97.195:3031"
+  server_key: uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=

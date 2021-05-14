@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,26 +7,24 @@ use anyhow::Result;
 use bb8::Pool;
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
-use serde::Deserialize;
-use serde::Serialize;
 use tokio::sync::RwLock;
+use ton_block::MsgAddressInt;
 use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
+use adnl_rpc_models::{WsRequestMessage, WsResponseMessage};
+
 use crate::config::Config;
-use crate::models::Address;
 use crate::ton::adnl_pool::AdnlManageConnection;
 
 const TIMEOUT_SECS: u64 = 1;
 
+static CONNECTION_ID: AtomicUsize = AtomicUsize::new(0);
+
 #[derive(Clone)]
 pub struct State {
     pub pool: Pool<AdnlManageConnection>,
-    pub addresses_callbacks: Arc<
-        RwLock<
-            HashMap<Address, HashMap<uuid::Uuid, mpsc::UnboundedSender<WebsocketResponseMessage>>>,
-        >,
-    >,
+    pub address_subscriptions: Arc<RwLock<AddressSubscriptionsMap>>,
 }
 
 impl State {
@@ -39,15 +38,17 @@ impl State {
                 config.adnl_config.tonlib_config()?,
             ))
             .await?;
+
         Ok(Self {
             pool,
-            addresses_callbacks: Default::default(),
+            address_subscriptions: Default::default(),
         })
     }
+
     pub async fn transaction_monitoring(self) {
         loop {
             tokio::time::sleep(Duration::from_secs(TIMEOUT_SECS)).await;
-            let addresses_callbacks = self.addresses_callbacks.read().await.clone();
+            let addresses_callbacks = self.address_subscriptions.read().await.clone();
             let mut connection = match self.pool.get().await {
                 Ok(conn) => conn,
                 Err(e) => {
@@ -66,13 +67,11 @@ impl State {
 
                 for (id, mut callback) in callbacks {
                     if callback
-                        .send(WebsocketResponseMessage::Transaction(
-                            serde_json::Value::Null,
-                        ))
+                        .send(WsResponseMessage::Transaction(serde_json::Value::Null))
                         .await
                         .is_err()
                     {
-                        let mut addresses_callbacks = self.addresses_callbacks.write().await;
+                        let mut addresses_callbacks = self.address_subscriptions.write().await;
                         let is_empty = if let Some(hash) = addresses_callbacks.get_mut(&address) {
                             hash.remove(&id);
                             hash.is_empty()
@@ -87,12 +86,12 @@ impl State {
             }
         }
     }
-}
 
-impl State {
-    pub(crate) async fn add_connection(&self, websocket: WebSocket) {
-        let (tx, rx) = mpsc::unbounded::<WebsocketResponseMessage>();
+    pub async fn add_connection(&self, websocket: WebSocket) {
+        let (tx, rx) = mpsc::unbounded::<WsResponseMessage>();
         let (ws_tx, mut ws_rx) = websocket.split();
+
+        let connection_id = CONNECTION_ID.fetch_add(1, Ordering::Relaxed);
 
         tokio::task::spawn(
             rx.map(|message| Ok(ws::Message::text(serde_json::to_string(&message).unwrap())))
@@ -100,9 +99,9 @@ impl State {
         );
 
         while let Some(Ok(message)) = ws_rx.next().await {
-            let message: WebsocketRequestMessage = match message
+            let message: WsRequestMessage = match message
                 .to_str()
-                .and_then(|s| serde_json::from_str::<WebsocketRequestMessage>(s).map_err(|_| ()))
+                .and_then(|s| serde_json::from_str::<WsRequestMessage>(s).map_err(|_| ()))
             {
                 Ok(x) => x,
                 Err(e) => {
@@ -114,34 +113,19 @@ impl State {
             log::debug!("Received {:?}", message);
 
             match message {
-                WebsocketRequestMessage::SubscribeForTransactions { address } => {
-                    let mut addresses_callbacks = self.addresses_callbacks.write().await;
-                    let id = uuid::Uuid::new_v4();
+                WsRequestMessage::SubscribeAccount { address } => {
+                    let mut addresses_callbacks = self.address_subscriptions.write().await;
                     addresses_callbacks
                         .entry(address.clone())
                         .or_insert_with(HashMap::new)
-                        .insert(id, tx.clone());
+                        .insert(connection_id, tx.clone());
                 }
-                WebsocketRequestMessage::SubscribeForNewBlock => {}
+                WsRequestMessage::SubscribeForNewBlock => {}
             }
         }
     }
 }
 
-#[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "messageType", content = "payload")]
-pub enum WebsocketRequestMessage {
-    #[serde(rename_all = "camelCase")]
-    SubscribeForTransactions { address: Address },
-    #[serde(rename_all = "camelCase")]
-    SubscribeForNewBlock,
-}
+type AddressSubscriptionsMap = HashMap<MsgAddressInt, HashMap<usize, WsTx>>;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-#[serde(tag = "messageType", content = "payload")]
-pub enum WebsocketResponseMessage {
-    Transaction(serde_json::Value),
-    Block(serde_json::Value),
-}
+type WsTx = mpsc::UnboundedSender<WsResponseMessage>;

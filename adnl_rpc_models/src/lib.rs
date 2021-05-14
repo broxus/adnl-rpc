@@ -1,0 +1,283 @@
+use std::cmp::Ordering;
+use std::convert::TryFrom;
+use std::fmt::{Display, Formatter};
+
+use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use ton_types::UInt256;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetContractState {
+    #[serde(with = "serde_address")]
+    address: ton_block::MsgAddressInt,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SendMessage {
+    #[serde(with = "serde_message")]
+    message: ton_block::Message,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GetTransactions {
+    #[serde(with = "serde_address")]
+    address: ton_block::MsgAddressInt,
+    transaction_id: TransactionId,
+    count: u8,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "messageType", content = "payload")]
+pub enum WsRequestMessage {
+    #[serde(rename_all = "camelCase")]
+    SubscribeAccount {
+        #[serde(with = "serde_address")]
+        address: ton_block::MsgAddressInt,
+    },
+    #[serde(rename_all = "camelCase")]
+    SubscribeForNewBlock,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "messageType", content = "payload")]
+pub enum WsResponseMessage {
+    Transaction(serde_json::Value),
+    Block {},
+}
+
+#[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase", tag = "type", content = "data")]
+pub enum LastTransactionId {
+    Exact(TransactionId),
+    Inexact { latest_lt: u64 },
+}
+
+impl LastTransactionId {
+    /// Whether the exact id is known
+    pub fn is_exact(&self) -> bool {
+        matches!(self, Self::Exact(_))
+    }
+
+    /// Converts last transaction id into real or fake id
+    pub fn to_transaction_id(self) -> TransactionId {
+        match self {
+            Self::Exact(id) => id,
+            Self::Inexact { latest_lt } => TransactionId {
+                lt: latest_lt,
+                hash: Default::default(),
+            },
+        }
+    }
+}
+
+impl PartialEq for LastTransactionId {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Exact(left), Self::Exact(right)) => left == right,
+            (Self::Inexact { latest_lt: left }, Self::Inexact { latest_lt: right }) => {
+                left == right
+            }
+            _ => false,
+        }
+    }
+}
+
+impl PartialOrd for LastTransactionId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for LastTransactionId {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let left = match self {
+            Self::Exact(id) => &id.lt,
+            Self::Inexact { latest_lt } => latest_lt,
+        };
+        let right = match other {
+            Self::Exact(id) => &id.lt,
+            Self::Inexact { latest_lt } => latest_lt,
+        };
+        left.cmp(right)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize)]
+pub struct TransactionId {
+    pub lt: u64,
+    #[serde(with = "serde_uint256")]
+    pub hash: UInt256,
+}
+
+impl PartialEq for TransactionId {
+    fn eq(&self, other: &Self) -> bool {
+        self.lt == other.lt
+    }
+}
+
+impl PartialOrd for TransactionId {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for TransactionId {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.lt.cmp(&other.lt)
+    }
+}
+
+pub mod serde_uint256 {
+    use serde::de::Error;
+    use serde::Deserialize;
+
+    use super::*;
+
+    pub fn serialize<S>(data: &UInt256, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&data.to_hex_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<UInt256, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = String::deserialize(deserializer)?;
+        UInt256::from_str(&data).map_err(|_| D::Error::custom("Invalid uint256"))
+    }
+}
+
+pub mod serde_address {
+    use std::str::FromStr;
+
+    use serde::de::Error;
+    use serde::Deserialize;
+
+    use super::*;
+
+    pub fn serialize<S>(data: &ton_block::MsgAddressInt, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&data.to_string())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ton_block::MsgAddressInt, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let data = String::deserialize(deserializer)?;
+        ton_block::MsgAddressInt::from_str(&data).map_err(|_| D::Error::custom("Invalid address"))
+    }
+}
+
+pub mod serde_optional_address {
+    use serde::{Deserialize, Serialize};
+
+    use super::*;
+
+    pub fn serialize<S>(
+        data: &Option<ton_block::MsgAddressInt>,
+        serializer: S,
+    ) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        #[derive(Serialize)]
+        #[serde(transparent)]
+        struct Wrapper<'a>(#[serde(with = "serde_address")] &'a ton_block::MsgAddressInt);
+
+        match data {
+            Some(data) => serializer.serialize_some(&Wrapper(data)),
+            None => serializer.serialize_none(),
+        }
+    }
+
+    pub fn deserialize<'de, D>(
+        deserializer: D,
+    ) -> Result<Option<ton_block::MsgAddressInt>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(transparent)]
+        struct Wrapper(#[serde(with = "serde_address")] ton_block::MsgAddressInt);
+
+        Option::<Wrapper>::deserialize(deserializer).map(|wrapper| wrapper.map(|data| data.0))
+    }
+}
+
+pub mod serde_message {
+    use super::*;
+    use ton_block::{Deserializable, Serializable};
+
+    pub fn serialize<S>(data: &ton_block::Message, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        use serde::ser::Error;
+
+        serde_cell::serialize(&data.serialize().map_err(S::Error::custom)?, serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ton_block::Message, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        let data = String::deserialize(deserializer)?;
+        ton_block::Message::construct_from_base64(&data).map_err(D::Error::custom)
+    }
+}
+
+pub mod serde_boc {
+    use super::*;
+
+    pub fn serialize<S>(data: &ton_types::SliceData, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde_cell::serialize(&data.into_cell(), serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<ton_types::SliceData, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        serde_cell::deserialize(deserializer).map(From::from)
+    }
+}
+
+pub mod serde_cell {
+    use serde::de::Deserialize;
+    use ton_types::Cell;
+
+    pub fn serialize<S>(data: &Cell, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::ser::Serializer,
+    {
+        use serde::ser::Error;
+
+        let bytes = ton_types::serialize_toc(data).map_err(S::Error::custom)?;
+        serializer.serialize_str(&hex::encode(bytes))
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Cell, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        use serde::de::Error;
+
+        let data = String::deserialize(deserializer)?;
+        let bytes = base64::decode(&data).map_err(D::Error::custom)?;
+        let cell = ton_types::deserialize_tree_of_cells(&mut std::io::Cursor::new(&bytes))
+            .map_err(D::Error::custom)?;
+        Ok(cell)
+    }
+}

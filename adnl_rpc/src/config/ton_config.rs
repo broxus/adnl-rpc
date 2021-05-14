@@ -6,12 +6,12 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct TonConfig {
+pub struct AdnlConfig {
     pub server_address: SocketAddr,
     pub server_key: String,
 }
 
-impl TonConfig {
+impl AdnlConfig {
     pub fn tonlib_config(&self) -> Result<client::AdnlClientConfig> {
         let json = serde_json::json!({
             "client_key": serde_json::Value::Null,
@@ -29,22 +29,16 @@ impl TonConfig {
     }
 }
 
-impl Default for TonConfig {
-    fn default() -> Self {
-        Self::default_testnet_config()
-    }
-}
-
-impl TonConfig {
-    pub fn default_mainnet_config() -> TonConfig {
-        TonConfig {
+impl AdnlConfig {
+    pub fn default_mainnet_config() -> AdnlConfig {
+        AdnlConfig {
             server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3031).into(),
             server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=".to_owned(),
         }
     }
 
-    pub fn default_testnet_config() -> TonConfig {
-        TonConfig {
+    pub fn default_testnet_config() -> AdnlConfig {
+        AdnlConfig {
             server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3032).into(),
             server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=".to_owned(),
         }
