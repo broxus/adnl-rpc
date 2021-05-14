@@ -207,15 +207,15 @@ pub mod serde_uint256 {
     use super::*;
 
     pub fn serialize<S>(data: &UInt256, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         serializer.serialize_str(&data.to_hex_string())
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<UInt256, D::Error>
-        where
-            D: serde::Deserializer<'de>,
+    where
+        D: serde::Deserializer<'de>,
     {
         let data = String::deserialize(deserializer)?;
         UInt256::from_str(&data).map_err(|_| D::Error::custom("Invalid uint256"))
@@ -231,15 +231,15 @@ pub mod serde_address {
     use super::*;
 
     pub fn serialize<S>(data: &MsgAddressInt, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         serializer.serialize_str(&data.to_string())
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<MsgAddressInt, D::Error>
-        where
-            D: serde::Deserializer<'de>,
+    where
+        D: serde::Deserializer<'de>,
     {
         let data = String::deserialize(deserializer)?;
         MsgAddressInt::from_str(&data).map_err(|_| D::Error::custom("Invalid address"))
@@ -252,8 +252,8 @@ pub mod serde_optional_address {
     use super::*;
 
     pub fn serialize<S>(data: &Option<MsgAddressInt>, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
+    where
+        S: serde::Serializer,
     {
         #[derive(Serialize)]
         #[serde(transparent)]
@@ -266,8 +266,8 @@ pub mod serde_optional_address {
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<MsgAddressInt>, D::Error>
-        where
-            D: serde::Deserializer<'de>,
+    where
+        D: serde::Deserializer<'de>,
     {
         #[derive(Deserialize)]
         #[serde(transparent)]

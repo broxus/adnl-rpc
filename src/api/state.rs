@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use std::sync::Arc;
+
 use anyhow::Result;
 use bb8::Pool;
 use futures::channel::mpsc;
@@ -9,10 +12,17 @@ use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
 use crate::config::Config;
+use crate::models::Address;
 use crate::ton::adnl_pool::AdnlManageConnection;
 
+#[derive(Clone)]
 pub struct State {
     pub pool: Pool<AdnlManageConnection>,
+    pub addresses_callbacks: Arc<
+        RwLock<
+            HashMap<Address, HashMap<uuid::Uuid, mpsc::UnboundedSender<WebsocketResponseMessage>>>,
+        >,
+    >,
 }
 
 impl State {
@@ -23,10 +33,13 @@ impl State {
             .min_idle(Some(5))
             .max_lifetime(None)
             .build(AdnlManageConnection::connect(
-                config.adnl_config.tonlib_config()?
+                config.adnl_config.tonlib_config()?,
             ))
             .await?;
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            addresses_callbacks: Default::default(),
+        })
     }
 }
 

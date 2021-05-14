@@ -5,10 +5,10 @@ use warp::Reply;
 use warp_json_rpc::{Builder, Error};
 
 use crate::api::State;
-use crate::models::{Message, Address, TransactionId};
+use crate::models::{Address, Message, TransactionId};
 
 pub(crate) async fn send_message(
-    state: Arc<State>,
+    state: State,
     res: Builder,
     msg: Message,
 ) -> Result<impl Reply, Infallible> {
@@ -22,7 +22,7 @@ pub(crate) async fn send_message(
 }
 
 pub(crate) async fn get_contract_state(
-    _state: Arc<State>,
+    _state: State,
     res: Builder,
     addr: Address,
 ) -> Result<impl Reply, Infallible> {
@@ -31,7 +31,7 @@ pub(crate) async fn get_contract_state(
 }
 
 pub(crate) async fn get_transactions(
-    _state: Arc<State>,
+    _state: State,
     res: Builder,
     (addr, transaction_id, count): (Address, TransactionId, u8),
 ) -> Result<impl Reply, Infallible> {
@@ -45,7 +45,7 @@ pub(crate) async fn get_transactions(
 }
 
 pub(crate) async fn get_latest_key_block(
-    _state: Arc<State>,
+    _state: State,
     res: Builder,
 ) -> Result<impl Reply, Infallible> {
     log::info!("Got get_latest_key_block request.");
@@ -53,7 +53,7 @@ pub(crate) async fn get_latest_key_block(
 }
 
 pub(crate) async fn get_blockchain_config(
-    _state: Arc<State>,
+    _state: State,
     res: Builder,
 ) -> Result<impl Reply, Infallible> {
     log::info!("Got get_blockchain_config request.");
@@ -61,7 +61,7 @@ pub(crate) async fn get_blockchain_config(
 }
 
 pub(crate) async fn max_transactions_per_fetch(
-    _state: Arc<State>,
+    _state: State,
     res: Builder,
 ) -> Result<impl Reply, Infallible> {
     log::info!("Got max_transactions_per_fetch request.");

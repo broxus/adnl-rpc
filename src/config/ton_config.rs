@@ -24,10 +24,10 @@ impl TonConfig {
             },
             "timeouts": adnl::common::Timeouts::default()
         });
-        AdnlClientConfig::from_json(&json.to_string()).map_err(|e| anyhow::Error::msg(e.to_string()))
+        AdnlClientConfig::from_json(&json.to_string())
+            .map_err(|e| anyhow::Error::msg(e.to_string()))
     }
 }
-
 
 impl Default for TonConfig {
     fn default() -> Self {
@@ -35,7 +35,7 @@ impl Default for TonConfig {
     }
 }
 
-impl TonConfig{
+impl TonConfig {
     pub fn default_mainnet_config() -> TonConfig {
         TonConfig {
             server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3031).into(),
@@ -50,4 +50,3 @@ impl TonConfig{
         }
     }
 }
-

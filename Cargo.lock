@@ -67,6 +67,7 @@ dependencies = [
  "tokio",
  "ton_block",
  "ton_types",
+ "uuid",
  "warp",
  "warp-json-rpc",
 ]
@@ -1825,6 +1826,16 @@ name = "utf-8"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "09cc8ee72d2a9becf2f2febe0205bbed8fc6615b7cb429ad062dc7b7ddd036a9"
+
+[[package]]
+name = "uuid"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
+dependencies = [
+ "getrandom 0.2.2",
+ "serde",
+]
 
 [[package]]
 name = "version_check"
