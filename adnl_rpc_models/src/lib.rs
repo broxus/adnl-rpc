@@ -1,7 +1,4 @@
 use std::cmp::Ordering;
-use std::convert::TryFrom;
-use std::fmt::{Display, Formatter};
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use ton_types::UInt256;
@@ -9,22 +6,22 @@ use ton_types::UInt256;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetContractState {
     #[serde(with = "serde_address")]
-    address: ton_block::MsgAddressInt,
+    pub address: ton_block::MsgAddressInt,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SendMessage {
     #[serde(with = "serde_message")]
-    message: ton_block::Message,
+    pub message: ton_block::Message,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GetTransactions {
     #[serde(with = "serde_address")]
-    address: ton_block::MsgAddressInt,
-    transaction_id: TransactionId,
-    count: u8,
+    pub address: ton_block::MsgAddressInt,
+    pub transaction_id: TransactionId,
+    pub count: u8,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -34,7 +31,7 @@ pub enum WsRequestMessage {
     #[serde(rename_all = "camelCase")]
     SubscribeAccount {
         #[serde(with = "serde_address")]
-        address: ton_block::MsgAddressInt,
+           address: ton_block::MsgAddressInt,
     },
     #[serde(rename_all = "camelCase")]
     SubscribeForNewBlock,
