@@ -17,25 +17,23 @@ checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
 name = "adnl"
-version = "0.3.0"
-source = "git+git://github.com/0xdeafbeef/ton-labs-adnl.git#bc58969e1e071c7ede3c156bc0198cf09c64f2cc"
+version = "0.0.5"
+source = "git+git://github.com/broxus/ton-labs-adnl.git#a201ffc0d46b877ab47e10d794680361bf3d3d47"
 dependencies = [
- "aes",
+ "aes-ctr",
  "arrayref",
  "async-trait",
- "base64 0.13.0",
- "cipher",
- "curve25519-dalek",
+ "base64 0.11.0",
+ "curve25519-dalek 2.1.2",
  "ed25519",
  "ed25519-dalek",
  "failure",
  "futures",
  "log",
- "pin-project",
  "rand 0.7.3",
  "serde 1.0.126",
  "serde_json",
- "sha2 0.9.5",
+ "sha2 0.8.2",
  "socket2 0.3.19",
  "stream-cancel",
  "tokio",
@@ -61,14 +59,17 @@ dependencies = [
  "futures",
  "hex",
  "http",
+ "humantime",
  "hyper",
  "log",
  "log4rs",
+ "parking_lot",
  "serde 1.0.126",
  "serde_json",
  "serde_yaml",
  "thiserror",
  "tokio",
+ "ton_api",
  "ton_block",
  "ton_types",
  "uuid",
@@ -90,15 +91,34 @@ dependencies = [
 ]
 
 [[package]]
-name = "aes"
-version = "0.7.1"
+name = "aes-ctr"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32380222440685202b62f23002e668519a6bf2d8df5e7655ed96223b6482b4be"
+checksum = "7729c3cde54d67063be556aeac75a81330d802f0259500ca40cb52967f975763"
 dependencies = [
- "cfg-if",
+ "aes-soft",
+ "aesni",
  "cipher",
- "cpufeatures",
  "ctr",
+]
+
+[[package]]
+name = "aes-soft"
+version = "0.6.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "be14c7498ea50828a38d0e24a765ed2effe92a705885b57d029cd67d45744072"
+dependencies = [
+ "cipher",
+ "opaque-debug 0.3.0",
+]
+
+[[package]]
+name = "aesni"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea2e11f5e94c2f7d386164cc2aa1f97823fed6f259e486940a71c174dd01b0ce"
+dependencies = [
+ "cipher",
  "opaque-debug 0.3.0",
 ]
 
@@ -309,9 +329,9 @@ dependencies = [
 
 [[package]]
 name = "cipher"
-version = "0.3.0"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ee52072ec15386f770805afd189a01c8841be8696bed250fa2f13c4c0d6dfb7"
+checksum = "12f8e7987cbd042a63249497f41aed09f8e65add917ea6566effbc56578d6801"
 dependencies = [
  "generic-array 0.14.4",
 ]
@@ -393,11 +413,24 @@ dependencies = [
 
 [[package]]
 name = "ctr"
-version = "0.7.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a232f92a03f37dd7d7dd2adc67166c77e9cd88de5b019b9a9eecfaeaf7bfd481"
+checksum = "fb4a30d54f7443bf3d6191dcd486aca19e67cb3c49fa7a06a319966346707e7f"
 dependencies = [
  "cipher",
+]
+
+[[package]]
+name = "curve25519-dalek"
+version = "2.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "434e1720189a637d44fe464f4df1e6eb900b4835255b14354497c78af37d9bb8"
+dependencies = [
+ "byteorder",
+ "digest 0.8.1",
+ "rand_core 0.5.1",
+ "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -463,7 +496,7 @@ version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c762bae6dcaf24c4c84667b8579785430908723d5c889f469d76a41d59cc7a9d"
 dependencies = [
- "curve25519-dalek",
+ "curve25519-dalek 3.1.0",
  "ed25519",
  "rand 0.7.3",
  "serde 1.0.126",
@@ -1884,9 +1917,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "1.1.0"
+version = "1.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf7b11a536f46a809a8a9f0bb4237020f70ecbf115b842360afb127ea2fda57"
+checksum = "c49e3df43841dafb86046472506755d8501c5615673955f6aa17181125d13c37"
 dependencies = [
  "proc-macro2 1.0.26",
  "quote 1.0.9",
@@ -1943,7 +1976,7 @@ dependencies = [
 [[package]]
 name = "ton_api"
 version = "0.0.1"
-source = "git+https://github.com/broxus/ton-labs-tl.git?branch=original#362cf6ce03dc5216a86ab5a207f3a74c07da62d0"
+source = "git+https://github.com/broxus/ton-labs-tl.git?branch=original#fe816c317954caf649dca6f42cc30149dcc1024a"
 dependencies = [
  "byteorder",
  "erased-serde",
@@ -1983,7 +2016,7 @@ dependencies = [
 [[package]]
 name = "ton_tl_codegen"
 version = "0.0.1"
-source = "git+https://github.com/broxus/ton-labs-tl.git?branch=original#362cf6ce03dc5216a86ab5a207f3a74c07da62d0"
+source = "git+https://github.com/broxus/ton-labs-tl.git?branch=original#fe816c317954caf649dca6f42cc30149dcc1024a"
 dependencies = [
  "crc",
  "failure",
@@ -2295,11 +2328,11 @@ checksum = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 
 [[package]]
 name = "x25519-dalek"
-version = "1.1.1"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a0c105152107e3b96f6a00a65e86ce82d9b125230e1c4302940eca58ff71f4f"
+checksum = "637ff90c9540fa3073bb577e65033069e4bae7c79d49d74aa3ffdf5342a53217"
 dependencies = [
- "curve25519-dalek",
+ "curve25519-dalek 2.1.2",
  "rand_core 0.5.1",
  "zeroize",
 ]

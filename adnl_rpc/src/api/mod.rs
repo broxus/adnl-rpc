@@ -1,7 +1,5 @@
-pub mod service;
-pub mod state;
-
 use std::convert::Infallible;
+use std::sync::Arc;
 
 use anyhow::Result;
 use futures::future;
@@ -13,10 +11,10 @@ use warp::http::StatusCode;
 use warp::{Filter, Rejection};
 use warp_json_rpc::filters as json_rpc;
 
-use adnl_rpc_models::{GetContractState, GetTransactions, SendMessage, TransactionId};
+use adnl_rpc_models::{GetContractState, GetTransactions, SendMessage};
 
-pub use self::state::*;
 use crate::config::Config;
+use crate::ton::*;
 
 const RPC_API_PATH: &str = "rpc";
 
@@ -46,7 +44,7 @@ fn new_error_response(error: warp_json_rpc::Error) -> Response<Body> {
 
 pub async fn serve(config: Config) -> Result<()> {
     let address = config.listen_address;
-    let state = State::new(config).await?;
+    let state = Arc::new(State::new(config).await?);
 
     tokio::spawn(state.clone().transaction_monitoring());
 
@@ -62,7 +60,7 @@ pub async fn serve(config: Config) -> Result<()> {
     Ok(())
 }
 
-pub fn rpc(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
         .and_then(move |response_builder: warp_json_rpc::Builder| async move {
@@ -79,68 +77,85 @@ pub fn rpc(state: State) -> BoxedFilter<(impl warp::Reply,)> {
     send_message(state.clone())
         .or(get_contract_state(state.clone()))
         .or(get_transactions(state.clone()))
-        .or(get_latest_key_block(state.clone()))
-        .or(get_blockchain_config(state))
+        .or(get_latest_key_block(state))
         .or(unknown_method)
         .or(parse_failure)
         .boxed()
 }
 
-pub fn send_message(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+fn wrap(
+    res: warp_json_rpc::Builder,
+    result: QueryResult<impl serde::Serialize + 'static>,
+) -> Result<impl warp::Reply, Infallible> {
+    Ok(match result {
+        Ok(result) => res.success(result),
+        Err(error) => res.error(warp_json_rpc::Error::custom(
+            error.code(),
+            error.to_string(),
+        )),
+    }
+    .unwrap())
+}
+
+pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("sendMessage"))
-        .and(json_rpc::params::<SendMessage>())
-        .and_then(service::send_message)
+        .and(json_rpc::params())
+        .and_then(|state: Arc<State>, res, req: SendMessage| async move {
+            wrap(res, state.send_message(req.message).await)
+        })
         .boxed()
 }
 
-pub fn get_contract_state(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("getContractState"))
-        .and(json_rpc::params::<GetContractState>())
-        .and_then(service::get_contract_state)
+        .and(json_rpc::params())
+        .and_then(|state: Arc<State>, res, req: GetContractState| async move {
+            wrap(res, state.get_contract_state(req.address).await)
+        })
         .boxed()
 }
 
-pub fn get_transactions(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("getTransactions"))
-        .and(json_rpc::params::<GetTransactions>())
-        .and_then(service::get_transactions)
+        .and(json_rpc::params())
+        .and_then(|state: Arc<State>, res, req: GetTransactions| async move {
+            wrap(
+                res,
+                state
+                    .get_transactions(req.address, req.transaction_id, req.count)
+                    .await,
+            )
+        })
         .boxed()
 }
 
-pub fn get_latest_key_block(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn get_latest_key_block(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
         .and(json_rpc::method("getLatestKeyBlock"))
-        .and_then(service::get_latest_key_block)
+        .and_then(
+            |state: Arc<State>, res| async move { wrap(res, state.get_latest_key_block().await) },
+        )
         .boxed()
 }
 
-pub fn get_blockchain_config(state: State) -> BoxedFilter<(impl warp::Reply,)> {
-    warp::path(RPC_API_PATH)
-        .map(move || state.clone())
-        .and(json_rpc::json_rpc())
-        .and(json_rpc::method("getBlockchainConfig"))
-        .and_then(service::get_blockchain_config)
-        .boxed()
-}
-
-pub fn ws_stream(state: State) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn ws_stream(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path::path("stream")
         .and(warp::path::end())
         .map(move || state.clone())
         .and(warp::ws())
-        .map(|state: State, ws: warp::ws::Ws| {
-            ws.on_upgrade(move |websocket| async move { state.add_connection(websocket).await })
+        .map(|state: Arc<State>, ws: warp::ws::Ws| {
+            ws.on_upgrade(move |websocket| async move { state.handle_websocket(websocket).await })
         })
         .boxed()
 }

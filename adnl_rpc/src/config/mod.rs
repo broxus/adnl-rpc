@@ -1,4 +1,6 @@
 use std::net::SocketAddr;
+use std::str::FromStr;
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +16,13 @@ pub struct Config {
     pub logger_settings: serde_yaml::Value,
 
     pub adnl_config: AdnlConfig,
+
+    pub max_connection_count: u32,
+
+    pub min_idle_connection_count: Option<u32>,
+
+    #[serde(with = "serde_time")]
+    pub last_block_cache_duration: Duration,
 }
 
 impl Default for Config {
@@ -22,6 +31,9 @@ impl Default for Config {
             listen_address: "127.0.0.1:9000".parse().unwrap(),
             logger_settings: default_logger_settings(),
             adnl_config: AdnlConfig::default_mainnet_config(),
+            max_connection_count: 100,
+            min_idle_connection_count: Some(5),
+            last_block_cache_duration: std::time::Duration::from_secs(1),
         }
     }
 }
@@ -45,4 +57,48 @@ fn default_logger_settings() -> serde_yaml::Value {
         additive: false
     "##;
     serde_yaml::from_str(DEFAULT_LOG4RS_SETTINGS).unwrap()
+}
+
+pub mod serde_time {
+    use super::*;
+
+    use serde::de::Error;
+    use serde::Deserialize;
+
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum DurationValue {
+        Number(u64),
+        String(String),
+    }
+
+    pub fn serialize<S>(data: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_u64(data.as_secs())
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value: DurationValue = serde::Deserialize::deserialize(deserializer)?;
+        match value {
+            DurationValue::Number(seconds) => Ok(Duration::from_secs(seconds)),
+            DurationValue::String(string) => {
+                let string = string.trim();
+
+                let seconds = if string.chars().all(|c| c.is_digit(10)) {
+                    u64::from_str(string).map_err(D::Error::custom)?
+                } else {
+                    humantime::Duration::from_str(string)
+                        .map_err(D::Error::custom)?
+                        .as_secs()
+                };
+
+                Ok(Duration::from_secs(seconds))
+            }
+        }
+    }
 }

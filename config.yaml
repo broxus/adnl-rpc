@@ -11,6 +11,16 @@ logger_settings:
     appenders:
       - stdout
   loggers:
+    warp:
+      level: trace
+      appenders:
+        - stdout
+      additive: false
+    bb8:
+      level: trace
+      appenders:
+        - stdout
+      additive: false
     adnl_rpc:
       level: debug
       appenders:
@@ -18,4 +28,7 @@ logger_settings:
       additive: false
 adnl_config:
   server_address: "54.158.97.195:3031"
-  server_key: uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=
+  server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc="
+last_block_cache_duration: 1s
+max_connection_count: 100
+min_idle_connection_count: 5
