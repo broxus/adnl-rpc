@@ -23,13 +23,13 @@ pub enum QueryError {
 impl QueryError {
     pub fn code(&self) -> i64 {
         match self {
-            QueryError::ConnectionError => 1,
-            QueryError::FailedToSerialize => 2,
-            QueryError::LiteServer(_) => 10,
-            QueryError::InvalidAccountStateProof => 20,
-            QueryError::InvalidAccountState => 21,
-            QueryError::InvalidBlock => 30,
-            QueryError::Unknown => 666,
+            QueryError::ConnectionError => -32001,
+            QueryError::FailedToSerialize => -32002,
+            QueryError::LiteServer(_) => -32003,
+            QueryError::InvalidAccountStateProof => -32004,
+            QueryError::InvalidAccountState => -32005,
+            QueryError::InvalidBlock => -32006,
+            QueryError::Unknown => -32603,
         }
     }
 }
