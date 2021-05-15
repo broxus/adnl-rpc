@@ -42,8 +42,14 @@ pub async fn query<T>(
 where
     T: ton_api::Function,
 {
+    let query_bytes = query
+        .boxed_serialized_bytes()
+        .map_err(|_| QueryError::FailedToSerialize)?;
+
     let response = connection
-        .query(&ton::TLObject::new(query))
+        .query(&ton::TLObject::new(ton::rpc::lite_server::Query {
+            data: query_bytes.into(),
+        }))
         .await
         .map_err(|_| QueryError::ConnectionError)?;
 
