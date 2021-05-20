@@ -46,7 +46,7 @@ pub async fn serve(config: Config) -> Result<()> {
     let address = config.listen_address;
     let state = Arc::new(State::new(config).await?);
 
-    tokio::spawn(state.clone().transaction_monitoring());
+    state.spawn_indexer().await?;
 
     let routes = rpc(state.clone()).or(ws_stream(state));
 

@@ -23,6 +23,9 @@ pub struct Config {
 
     #[serde(with = "serde_time")]
     pub last_block_cache_duration: Duration,
+
+    #[serde(with = "serde_time")]
+    pub indexer_interval: Duration,
 }
 
 impl Default for Config {
@@ -33,7 +36,8 @@ impl Default for Config {
             adnl_config: AdnlConfig::default_mainnet_config(),
             max_connection_count: 100,
             min_idle_connection_count: Some(5),
-            last_block_cache_duration: std::time::Duration::from_secs(1),
+            last_block_cache_duration: Duration::from_secs(1),
+            indexer_interval: Duration::from_secs(10),
         }
     }
 }
