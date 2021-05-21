@@ -33,14 +33,14 @@ impl bb8::ManageConnection for AdnlManageConnection {
     }
 
     async fn is_valid(&self, conn: &mut PooledConnection<'_, Self>) -> Result<(), Self::Error> {
-        log::debug!("Check if connection is valid...");
+        log::trace!("Check if connection is valid...");
 
         conn.deref_mut().ping().await.map(|_| ()).map_err(|e| {
-            log::debug!("Ping error: {:?}", e);
+            log::error!("Ping error: {:?}", e);
             Error::msg(e.to_string())
         })?;
 
-        log::debug!("Connection is valid");
+        log::trace!("Connection is valid");
 
         Ok(())
     }

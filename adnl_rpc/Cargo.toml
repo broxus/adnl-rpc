@@ -11,7 +11,7 @@ edition = "2018"
 [dependencies]
 adnl_rpc_models = { path = "../adnl_rpc_models" }
 
-adnl = { git = "git://github.com/broxus/ton-labs-adnl.git" }
+adnl = { version = "0.3", git = "git://github.com/broxus/ton-labs-adnl.git" }
 ton_api = { git = "https://github.com/broxus/ton-labs-tl.git", branch = "original", package = "ton_api" }
 ton_block = { git = "git://github.com/tonlabs/ton-labs-block.git" }
 ton_types = { git = "git://github.com/tonlabs/ton-labs-types.git" }
@@ -36,5 +36,5 @@ serde_yaml = "0.8.17"
 thiserror = "1.0.24"
 tokio = { version = "1.5.0", features = ["full"] }
 uuid = { version = "0.8", features = ["v4", "serde"] }
-warp = "0.3.1"
+warp = {version = "0.3.1", features = ["compression"] }
 warp-json-rpc = "0.3.0"

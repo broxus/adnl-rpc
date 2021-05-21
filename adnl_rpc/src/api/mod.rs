@@ -6,9 +6,9 @@ use futures::future;
 use http::Response;
 use hyper::Body;
 use serde::Serialize;
+use warp::{Filter, Rejection};
 use warp::filters::BoxedFilter;
 use warp::http::StatusCode;
-use warp::{Filter, Rejection};
 use warp_json_rpc::filters as json_rpc;
 
 use adnl_rpc_models::{GetContractState, GetTransactions, SendMessage};
@@ -51,7 +51,7 @@ pub async fn serve(config: Config) -> Result<()> {
     let routes = rpc(state.clone()).or(ws_stream(state));
 
     let service = warp_json_rpc::service(routes);
-
+    log::info!("Started server");
     hyper::Server::bind(&address)
         .serve(hyper::service::make_service_fn(move |_| {
             future::ok::<_, Infallible>(service.clone())
@@ -60,7 +60,7 @@ pub async fn serve(config: Config) -> Result<()> {
     Ok(())
 }
 
-pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
     let unknown_method = warp::path(RPC_API_PATH)
         .and(warp_json_rpc::filters::json_rpc())
         .and_then(move |response_builder: warp_json_rpc::Builder| async move {
@@ -75,12 +75,13 @@ pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     });
 
     send_message(state.clone())
+        .or(send_message(state.clone()))
         .or(get_contract_state(state.clone()))
         .or(get_transactions(state.clone()))
         .or(get_latest_key_block(state))
         .or(unknown_method)
         .or(parse_failure)
-        .boxed()
+        .with(warp::compression::gzip()).boxed()
 }
 
 fn wrap(
@@ -94,10 +95,11 @@ fn wrap(
             error.to_string(),
         )),
     }
-    .unwrap())
+        .unwrap())
 }
 
-pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
+    log::debug!("sendMessage");
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
@@ -109,19 +111,8 @@ pub fn send_message(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         .boxed()
 }
 
-pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
-    warp::path(RPC_API_PATH)
-        .map(move || state.clone())
-        .and(json_rpc::json_rpc())
-        .and(json_rpc::method("getContractState"))
-        .and(json_rpc::params())
-        .and_then(|state: Arc<State>, res, req: GetContractState| async move {
-            wrap(res, state.get_contract_state(req.address).await)
-        })
-        .boxed()
-}
-
-pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
+    log::debug!("getTransactions");
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
@@ -138,7 +129,21 @@ pub fn get_transactions(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         .boxed()
 }
 
-pub fn get_latest_key_block(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn get_contract_state(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
+    log::debug!("getContractState");
+    warp::path(RPC_API_PATH)
+        .map(move || state.clone())
+        .and(json_rpc::json_rpc())
+        .and(json_rpc::method("getContractState"))
+        .and(json_rpc::params::<GetContractState>())
+        .and_then(|state: Arc<State>, res, req:GetContractState| async move {
+            wrap(res, state.get_contract_state(req.address).await)
+        })
+        .boxed()
+}
+
+pub fn get_latest_key_block(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
+    log::debug!("getLatestKeyBlock");
     warp::path(RPC_API_PATH)
         .map(move || state.clone())
         .and(json_rpc::json_rpc())
@@ -149,7 +154,7 @@ pub fn get_latest_key_block(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,
         .boxed()
 }
 
-pub fn ws_stream(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
+pub fn ws_stream(state: Arc<State>) -> BoxedFilter<(impl warp::Reply, )> {
     warp::path::path("stream")
         .and(warp::path::end())
         .map(move || state.clone())

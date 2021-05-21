@@ -1,8 +1,3 @@
-mod adnl_pool;
-mod connection;
-mod errors;
-mod last_block;
-
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -19,15 +14,21 @@ use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
 use adnl_rpc_models::{
-    ExistingContract, GenTimings, RawBlock, RawContractState, RawTransactionsList, TransactionId,
-    WsRequestMessage, WsResponseMessage,
+    ExistingContract, GenTimings, LastTransactionId, RawBlock, RawContractState,
+    RawTransactionsList, TransactionId, WsRequestMessage, WsResponseMessage,
 };
+
+use crate::config::Config;
 
 use self::adnl_pool::AdnlManageConnection;
 use self::connection::*;
 pub use self::errors::*;
 use self::last_block::LastBlock;
-use crate::config::Config;
+
+mod adnl_pool;
+mod connection;
+mod errors;
+mod last_block;
 
 const TIMEOUT_SECS: u64 = 1;
 
@@ -136,14 +137,14 @@ impl State {
                 Ok(if let Some(shard_info) = shard_info {
                     RawContractState::Exists(ExistingContract {
                         account,
-                        timings: GenTimings {
+                        timings: GenTimings::Known {
                             gen_lt: ss.gen_lt(),
                             gen_utime: ss.gen_time(),
                         },
-                        last_transaction_id: TransactionId {
+                        last_transaction_id: LastTransactionId::Exact(TransactionId {
                             lt: shard_info.last_trans_lt(),
                             hash: *shard_info.last_trans_hash(),
-                        },
+                        }),
                     })
                 } else {
                     RawContractState::NotExists
