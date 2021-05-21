@@ -32,3 +32,4 @@ adnl_config:
 last_block_cache_duration: 1s
 max_connection_count: 100
 min_idle_connection_count: 5
+indexer_interval: 1s
