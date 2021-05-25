@@ -1,7 +1,9 @@
+use std::cmp::Ordering;
+use std::str::FromStr;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use ton_types::UInt256;
-use std::cmp::Ordering;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GetContractState {
@@ -24,12 +26,14 @@ pub struct GetTransactions {
     pub count: u8,
 }
 
-
 #[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "type", content = "data")]
 pub enum LastTransactionId {
     Exact(TransactionId),
-    Inexact { latest_lt: u64 },
+    Inexact {
+        #[serde(with = "serde_u64")]
+        latest_lt: u64,
+    },
 }
 
 impl LastTransactionId {
@@ -84,6 +88,7 @@ impl Ord for LastTransactionId {
 
 #[derive(Debug, Copy, Clone, Eq, Serialize, Deserialize)]
 pub struct TransactionId {
+    #[serde(with = "serde_u64")]
     pub lt: u64,
     #[serde(with = "serde_uint256")]
     pub hash: UInt256,
@@ -145,14 +150,17 @@ pub struct ExistingContract {
     pub last_transaction_id: LastTransactionId,
 }
 
-
 #[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase", tag = "type")]
 pub enum GenTimings {
     /// There is no way to determine the point in time at which this specific state was obtained
     Unknown,
     /// There is a known point in time at which this specific state was obtained
-    Known { gen_lt: u64, gen_utime: u32 },
+    Known {
+        #[serde(with = "serde_u64")]
+        gen_lt: u64,
+        gen_utime: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -161,11 +169,32 @@ pub struct RawTransactionsList {
     pub transactions: Vec<u8>,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RawBlock {
     #[serde(with = "serde_ton_block")]
     pub block: ton_block::Block,
+}
+
+pub mod serde_u64 {
+    use serde::de::Error;
+    use serde::Deserialize;
+
+    use super::*;
+
+    pub fn serialize<S>(data: &u64, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        data.to_string().serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<u64, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        String::deserialize(deserializer)
+            .and_then(|data| u64::from_str(&data).map_err(D::Error::custom))
+    }
 }
 
 pub mod serde_uint256 {

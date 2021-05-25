@@ -1,5 +1,5 @@
 ---
-listen_address: "127.0.0.1:9000"
+listen_address: "127.0.0.1:10000"
 logger_settings:
   appenders:
     stdout:
