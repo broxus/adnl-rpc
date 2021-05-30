@@ -12,8 +12,8 @@ use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
 use adnl_rpc_models::{
-    ExistingContract, GenTimings, LastTransactionId, RawBlock, RawContractState,
-    RawTransactionsList, TransactionId, WsRequestMessage, WsResponseMessage,
+    ExistingContract, GenTimings, RawBlock, RawContractState, RawTransactionsList, TransactionId,
+    WsRequestMessage, WsResponseMessage,
 };
 
 use crate::config::Config;
@@ -136,14 +136,14 @@ impl State {
                 Ok(if let Some(shard_info) = shard_info {
                     RawContractState::Exists(ExistingContract {
                         account,
-                        timings: GenTimings::Known {
+                        timings: GenTimings {
                             gen_lt: ss.gen_lt(),
                             gen_utime: ss.gen_time(),
                         },
-                        last_transaction_id: LastTransactionId::Exact(TransactionId {
+                        last_transaction_id: TransactionId {
                             lt: shard_info.last_trans_lt(),
                             hash: *shard_info.last_trans_hash(),
-                        }),
+                        },
                     })
                 } else {
                     RawContractState::NotExists
@@ -157,10 +157,23 @@ impl State {
     pub async fn get_transactions(
         &self,
         address: MsgAddressInt,
-        from: TransactionId,
+        from: Option<TransactionId>,
         count: u8,
     ) -> QueryResult<RawTransactionsList> {
         let mut connection = self.acquire_connection().await?;
+
+        let from = match from {
+            Some(id) => id,
+            None => match self.get_contract_state(address.clone()).await? {
+                RawContractState::Exists(contract) => contract.last_transaction_id,
+                RawContractState::NotExists => {
+                    let transactions =
+                        ton_types::serialize_toc(&ton_types::Cell::default()).unwrap();
+
+                    return Ok(RawTransactionsList { transactions });
+                }
+            },
+        };
 
         let response = query(
             &mut connection,
