@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 
 use anyhow::Result;
 use bb8::{Pool, PooledConnection};
 use futures::channel::mpsc;
-use futures::{SinkExt, StreamExt};
+use futures::StreamExt;
 use tokio::sync::RwLock;
 use ton_api::ton;
-use ton_block::{BinTreeType, Deserializable, MsgAddressInt, Serializable};
+use ton_block::{Deserializable, MsgAddressInt, Serializable};
 use warp::filters::ws;
 use warp::filters::ws::WebSocket;
 
@@ -35,7 +34,6 @@ pub struct State {
     pool: Pool<AdnlManageConnection>,
     last_block: LastBlock,
     address_subscriptions: RwLock<AddressSubscriptionsMap>,
-    config: Config,
 }
 
 impl State {
@@ -54,7 +52,6 @@ impl State {
             pool,
             last_block: LastBlock::new(&config.last_block_cache_duration),
             address_subscriptions: Default::default(),
-            config,
         })
     }
 
