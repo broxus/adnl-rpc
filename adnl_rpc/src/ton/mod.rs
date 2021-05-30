@@ -58,89 +58,21 @@ impl State {
         })
     }
 
-    pub async fn spawn_indexer(self: &Arc<Self>) -> QueryResult<()> {
-        let indexer = Arc::downgrade(self);
-        let mut connection = self.acquire_connection().await?;
-        let mut curr_mc_block_id = self.last_block.get_last_block(&mut connection).await?;
-
-        tokio::spawn(async move {
-            loop {
-                let indexer = match indexer.upgrade() {
-                    Some(indexer) => indexer,
-                    None => return,
-                };
-
-                tokio::time::sleep(indexer.config.indexer_interval).await;
-                log::debug!("Indexer step");
-
-                let mut connection = match indexer.acquire_connection().await {
-                    Ok(connection) => connection,
-                    Err(_) => continue,
-                };
-
-                match indexer
-                    .indexer_step(&mut connection, &curr_mc_block_id)
-                    .await
-                {
-                    Ok(next_block_id) => curr_mc_block_id = next_block_id,
-                    Err(e) => {
-                        log::error!("Indexer step error: {:?}", e);
-                    }
-                }
-            }
-        });
-
-        Ok(())
-    }
-
-    async fn indexer_step(
-        &self,
-        connection: &mut PooledConnection<'_, AdnlManageConnection>,
-        prev_mc_block_id: &ton::ton_node::blockidext::BlockIdExt,
-    ) -> Result<ton::ton_node::blockidext::BlockIdExt> {
-        let curr_mc_block_id = self.last_block.get_last_block(connection).await?;
-        if prev_mc_block_id == &curr_mc_block_id {
-            return Ok(curr_mc_block_id);
-        }
-
-        let curr_mc_block = query_block(connection, curr_mc_block_id.clone()).await?;
-        let extra = curr_mc_block
-            .extra
-            .read_struct()
-            .and_then(|extra| extra.read_custom())
-            .map_err(|e| anyhow::anyhow!("Failed to parse block info: {:?}", e))?;
-
-        let extra = match extra {
-            Some(extra) => extra,
-            None => return Ok(curr_mc_block_id),
-        };
-
-        let mut workchain = -1;
-        extra
-            .shards()
-            .iterate_shards(|shard_id, shard| {
-                log::debug!("Shard id: {:?}, shard block: {}", shard_id, shard.seq_no);
-
-                Ok(true)
-            })
-            .map_err(|e| anyhow::anyhow!("Failed to iterate shards: {:?}", e))?;
-
-        log::debug!("Next masterchain block id: {:?}", curr_mc_block_id);
-        Ok(curr_mc_block_id)
-    }
-
     pub async fn send_message(&self, message: ton_block::Message) -> QueryResult<()> {
         let mut connection = self.acquire_connection().await?;
 
-        let data = message
-            .serialize()
-            .and_then(|cell| cell.write_to_bytes())
-            .map_err(|_| QueryError::FailedToSerialize)?;
+        let cells = message
+            .write_to_new_cell()
+            .map_err(|_| QueryError::FailedToSerialize)?
+            .into();
+
+        let serialized =
+            ton_types::serialize_toc(&cells).map_err(|_| QueryError::FailedToSerialize)?;
 
         query(
             &mut connection,
             ton::rpc::lite_server::SendMessage {
-                body: ton::bytes(data),
+                body: ton::bytes(serialized),
             },
         )
         .await?;
