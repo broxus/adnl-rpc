@@ -149,8 +149,7 @@ impl State {
                     RawContractState::NotExists
                 })
             }
-            Ok(_) => Ok(RawContractState::NotExists),
-            Err(_) => Err(QueryError::InvalidAccountState),
+            _ => Ok(RawContractState::NotExists),
         }
     }
 
