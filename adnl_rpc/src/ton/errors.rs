@@ -12,8 +12,6 @@ pub enum QueryError {
     LiteServer(ton::lite_server::Error),
     #[error("Invalid account state proof")]
     InvalidAccountStateProof,
-    #[error("Invalid account state")]
-    InvalidAccountState,
     #[error("Invalid block")]
     InvalidBlock,
     #[error("Unknown")]
@@ -27,7 +25,6 @@ impl QueryError {
             QueryError::FailedToSerialize => -32002,
             QueryError::LiteServer(_) => -32003,
             QueryError::InvalidAccountStateProof => -32004,
-            QueryError::InvalidAccountState => -32005,
             QueryError::InvalidBlock => -32006,
             QueryError::Unknown => -32603,
         }

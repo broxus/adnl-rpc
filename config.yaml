@@ -11,16 +11,6 @@ logger_settings:
     appenders:
       - stdout
   loggers:
-    warp:
-      level: trace
-      appenders:
-        - stdout
-      additive: false
-    bb8:
-      level: trace
-      appenders:
-        - stdout
-      additive: false
     adnl_rpc:
       level: debug
       appenders:

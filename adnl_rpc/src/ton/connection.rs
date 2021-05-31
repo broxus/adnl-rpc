@@ -42,23 +42,38 @@ pub async fn query<T>(
 where
     T: ton_api::Function,
 {
+    const MAX_RETIRES: usize = 3;
+    const RETRY_INTERVAL: u64 = 100; // Milliseconds
+
+    const ERR_NOT_READY: i32 = 651;
+
     let query_bytes = query
         .boxed_serialized_bytes()
         .map_err(|_| QueryError::FailedToSerialize)?;
 
-    let response = connection
-        .query(&ton::TLObject::new(ton::rpc::lite_server::Query {
-            data: query_bytes.into(),
-        }))
-        .await
-        .map_err(|_| QueryError::ConnectionError)?;
+    let query = ton::TLObject::new(ton::rpc::lite_server::Query {
+        data: query_bytes.into(),
+    });
 
-    match response.downcast::<T::Reply>() {
-        Ok(reply) => Ok(reply),
-        Err(error) => match error.downcast::<ton::lite_server::Error>() {
-            Ok(error) => Err(QueryError::LiteServer(error)),
-            Err(_) => Err(QueryError::Unknown),
-        },
+    let mut retries = 0;
+    loop {
+        let response = connection
+            .query(&query)
+            .await
+            .map_err(|_| QueryError::ConnectionError)?;
+
+        match response.downcast::<T::Reply>() {
+            Ok(reply) => return Ok(reply),
+            Err(error) => match error.downcast::<ton::lite_server::Error>() {
+                Ok(error) if retries < MAX_RETIRES && error.code() == &ERR_NOT_READY => {
+                    tokio::time::sleep(std::time::Duration::from_millis(RETRY_INTERVAL)).await;
+                    retries += 1;
+                    continue;
+                }
+                Ok(error) => return Err(QueryError::LiteServer(error)),
+                Err(_) => return Err(QueryError::Unknown),
+            },
+        }
     }
 }
 
