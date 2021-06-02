@@ -138,7 +138,7 @@ impl State {
                         account,
                         timings: GenTimings {
                             gen_lt: ss.gen_lt(),
-                            gen_utime: ss.gen_time(),
+                            gen_utime: (chrono::Utc::now().timestamp() - 10) as u32, // TEMP!!!!!, replace with ss.gen_time(),
                         },
                         last_transaction_id: TransactionId {
                             lt: shard_info.last_trans_lt(),

@@ -21,6 +21,7 @@ async-trait = "0.1.50"
 base64 = "0.13.0"
 bb8 = "0.7.0"
 config = { version = "0.11.0", features = ["yaml"] }
+chrono = "0.4"
 clap = "3.0.0-beta.2"
 log4rs = "1.0"
 futures = "0.3.15"
