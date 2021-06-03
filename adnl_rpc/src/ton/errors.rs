@@ -16,6 +16,8 @@ pub enum QueryError {
     InvalidBlock,
     #[error("Unknown")]
     Unknown,
+    #[error("Not ready")]
+    NotReady,
 }
 
 impl QueryError {
@@ -26,6 +28,7 @@ impl QueryError {
             QueryError::LiteServer(_) => -32003,
             QueryError::InvalidAccountStateProof => -32004,
             QueryError::InvalidBlock => -32006,
+            QueryError::NotReady => -32007,
             QueryError::Unknown => -32603,
         }
     }

@@ -11,14 +11,15 @@ pub async fn query_block_by_seqno(
 ) -> QueryResult<ton_block::Block> {
     let block_id = query(
         connection,
-        ton::rpc::lite_server::LookupBlock {
+        &ton::rpc::lite_server::LookupBlock {
             mode: 0x1,
             id,
             lt: None,
             utime: None,
         },
     )
-    .await?;
+    .await?
+    .try_into_data()?;
 
     query_block(connection, block_id.only().id).await
 }
@@ -27,7 +28,9 @@ pub async fn query_block(
     connection: &mut PooledConnection<'_, AdnlManageConnection>,
     id: ton::ton_node::blockidext::BlockIdExt,
 ) -> QueryResult<ton_block::Block> {
-    let block = query(connection, ton::rpc::lite_server::GetBlock { id }).await?;
+    let block = query(connection, &ton::rpc::lite_server::GetBlock { id })
+        .await?
+        .try_into_data()?;
 
     let block = ton_block::Block::construct_from_bytes(&block.only().data.0)
         .map_err(|_| QueryError::InvalidBlock)?;
@@ -37,8 +40,8 @@ pub async fn query_block(
 
 pub async fn query<T>(
     connection: &mut PooledConnection<'_, AdnlManageConnection>,
-    query: T,
-) -> QueryResult<T::Reply>
+    query: &T,
+) -> QueryResult<QueryReply<T::Reply>>
 where
     T: ton_api::Function,
 {
@@ -63,12 +66,16 @@ where
             .map_err(|_| QueryError::ConnectionError)?;
 
         match response.downcast::<T::Reply>() {
-            Ok(reply) => return Ok(reply),
+            Ok(reply) => return Ok(QueryReply::Data(reply)),
             Err(error) => match error.downcast::<ton::lite_server::Error>() {
-                Ok(error) if retries < MAX_RETIRES && error.code() == &ERR_NOT_READY => {
-                    tokio::time::sleep(std::time::Duration::from_millis(RETRY_INTERVAL)).await;
-                    retries += 1;
-                    continue;
+                Ok(error) if error.code() == &ERR_NOT_READY => {
+                    if retries < MAX_RETIRES {
+                        tokio::time::sleep(std::time::Duration::from_millis(RETRY_INTERVAL)).await;
+                        retries += 1;
+                        continue;
+                    } else {
+                        return Ok(QueryReply::NotReady);
+                    }
                 }
                 Ok(error) => return Err(QueryError::LiteServer(error)),
                 Err(_) => return Err(QueryError::Unknown),
@@ -84,4 +91,25 @@ pub async fn acquire_connection(
         log::error!("connection error: {:#?}", e);
         QueryError::ConnectionError
     })
+}
+
+pub enum QueryReply<T> {
+    Data(T),
+    NotReady,
+}
+
+impl<T> QueryReply<T> {
+    pub fn has_data(&self) -> bool {
+        match self {
+            Self::Data(_) => true,
+            Self::NotReady => false,
+        }
+    }
+
+    pub fn try_into_data(self) -> QueryResult<T> {
+        match self {
+            Self::Data(data) => Ok(data),
+            Self::NotReady => Err(QueryError::NotReady),
+        }
+    }
 }

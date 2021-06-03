@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use bb8::{Pool, PooledConnection};
@@ -55,6 +57,22 @@ impl State {
         })
     }
 
+    pub fn start_masterchain_cache_updater(self: &Arc<Self>) {
+        let state = Arc::downgrade(self);
+
+        tokio::spawn(async move {
+            while let Some(state) = state.upgrade() {
+                if let Err(e) = state.get_latest_key_block().await {
+                    log::error!("Failed to get masterchain block: {}", e);
+                }
+
+                std::mem::drop(state);
+
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        });
+    }
+
     pub async fn send_message(&self, message: ton_block::Message) -> QueryResult<()> {
         let mut connection = self.acquire_connection().await?;
 
@@ -68,11 +86,12 @@ impl State {
 
         query(
             &mut connection,
-            ton::rpc::lite_server::SendMessage {
+            &ton::rpc::lite_server::SendMessage {
                 body: ton::bytes(serialized),
             },
         )
-        .await?;
+        .await?
+        .try_into_data()?;
 
         Ok(())
     }
@@ -83,29 +102,43 @@ impl State {
     ) -> QueryResult<RawContractState> {
         use ton_block::HashmapAugType;
 
-        log::debug!("Getting contract state: {}", address);
-
         let mut connection = self.acquire_connection().await?;
-
-        log::debug!("Acquired connection");
-
         let last_block_id = self.last_block.get_last_block(&mut connection).await?;
 
-        log::debug!("Got last block id");
-
-        let response = query(
-            &mut connection,
-            ton::rpc::lite_server::GetAccountState {
-                id: last_block_id,
-                account: ton::lite_server::accountid::AccountId {
-                    workchain: address.workchain_id(),
-                    id: ton::int256(
-                        ton_types::UInt256::from(address.address().get_bytestring(0)).into(),
-                    ),
-                },
+        let mut account_state_query = ton::rpc::lite_server::GetAccountState {
+            id: last_block_id.clone(),
+            account: ton::lite_server::accountid::AccountId {
+                workchain: address.workchain_id(),
+                id: ton::int256(
+                    ton_types::UInt256::from(address.address().get_bytestring(0)).into(),
+                ),
             },
-        )
-        .await?
+        };
+
+        let response = {
+            match query(&mut connection, &account_state_query).await? {
+                QueryReply::Data(data) => data,
+                QueryReply::NotReady => {
+                    let previous_block_ids = self
+                        .last_block
+                        .last_cached_blocks()
+                        .await
+                        .skip_while(|block| block.seqno < last_block_id.seqno);
+
+                    let mut result = QueryReply::NotReady;
+                    for block_id in previous_block_ids {
+                        account_state_query.id = block_id;
+                        result = query(&mut connection, &account_state_query).await?;
+
+                        if result.has_data() {
+                            break;
+                        }
+                    }
+
+                    result.try_into_data()?
+                }
+            }
+        }
         .only();
 
         match ton_block::Account::construct_from_bytes(&response.state.0) {
@@ -176,7 +209,7 @@ impl State {
 
         let response = query(
             &mut connection,
-            ton::rpc::lite_server::GetTransactions {
+            &ton::rpc::lite_server::GetTransactions {
                 count: count as i32,
                 account: ton::lite_server::accountid::AccountId {
                     workchain: address.workchain_id() as i32,
@@ -188,7 +221,8 @@ impl State {
                 hash: from.hash.into(),
             },
         )
-        .await?;
+        .await?
+        .try_into_data()?;
 
         Ok(RawTransactionsList {
             transactions: response.only().transactions.0,

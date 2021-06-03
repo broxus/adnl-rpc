@@ -46,6 +46,8 @@ pub async fn serve(config: Config) -> Result<()> {
     let address = config.listen_address;
     let state = Arc::new(State::new(config).await?);
 
+    state.start_masterchain_cache_updater();
+
     let routes = rpc(state.clone()).or(ws_stream(state));
 
     let service = warp_json_rpc::service(routes);
