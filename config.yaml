@@ -19,6 +19,7 @@ logger_settings:
 adnl_config:
   server_address: "54.158.97.195:3031"
   server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc="
+  socket_timeout_ms: 5000
 last_block_cache_duration: 1s
 max_connection_count: 100
 min_idle_connection_count: 5

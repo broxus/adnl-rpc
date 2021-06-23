@@ -1,32 +1,29 @@
-use adnl::client::{AdnlClient, AdnlClientConfig};
+use std::sync::Arc;
+
 use anyhow::Error;
 use async_trait::async_trait;
 use bb8::PooledConnection;
 use std::ops::DerefMut;
+use tiny_adnl::{AdnlTcpClient, AdnlTcpClientConfig};
 
 pub struct AdnlManageConnection {
-    config: AdnlClientConfig,
+    config: AdnlTcpClientConfig,
 }
 
 impl AdnlManageConnection {
-    pub fn new(config: AdnlClientConfig) -> Self {
+    pub fn new(config: AdnlTcpClientConfig) -> Self {
         Self { config }
     }
 }
 
 #[async_trait]
 impl bb8::ManageConnection for AdnlManageConnection {
-    type Connection = AdnlClient;
+    type Connection = Arc<AdnlTcpClient>;
     type Error = Error;
 
     async fn connect(&self) -> Result<Self::Connection, Self::Error> {
         log::debug!("Establishing adnl connection...");
-
-        let connection = AdnlClient::connect(&self.config).await.map_err(|e| {
-            log::debug!("Connection error: {:?}", e);
-            Error::msg(e.to_string())
-        })?;
-
+        let connection = AdnlTcpClient::connect(self.config.clone()).await?;
         log::debug!("Established adnl connection");
 
         Ok(connection)
@@ -34,12 +31,7 @@ impl bb8::ManageConnection for AdnlManageConnection {
 
     async fn is_valid(&self, conn: &mut PooledConnection<'_, Self>) -> Result<(), Self::Error> {
         log::trace!("Check if connection is valid...");
-
-        conn.deref_mut().ping().await.map(|_| ()).map_err(|e| {
-            log::error!("Ping error: {:?}", e);
-            Error::msg(e.to_string())
-        })?;
-
+        conn.deref_mut().ping(10).await?;
         log::trace!("Connection is valid");
 
         Ok(())

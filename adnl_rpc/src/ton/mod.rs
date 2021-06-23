@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryInto;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -45,9 +46,7 @@ impl State {
             .max_size(config.max_connection_count)
             .min_idle(config.min_idle_connection_count)
             .max_lifetime(None)
-            .build(AdnlManageConnection::new(
-                config.adnl_config.tonlib_config()?,
-            ))
+            .build(AdnlManageConnection::new(config.adnl_config.try_into()?))
             .await?;
 
         Ok(Self {

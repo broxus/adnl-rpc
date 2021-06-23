@@ -11,11 +11,6 @@ edition = "2018"
 [dependencies]
 adnl_rpc_models = { path = "../adnl_rpc_models" }
 
-adnl = { version = "0.3", git = "git://github.com/broxus/ton-labs-adnl.git" }
-ton_api = { git = "https://github.com/broxus/ton-labs-tl.git", branch = "original", package = "ton_api" }
-ton_block = { git = "git://github.com/tonlabs/ton-labs-block.git" }
-ton_types = { git = "git://github.com/tonlabs/ton-labs-types.git" }
-
 anyhow = "1.0.40"
 async-trait = "0.1.50"
 base64 = "0.13.0"
@@ -23,6 +18,7 @@ bb8 = "0.7.0"
 config = { version = "0.11.0", features = ["yaml"] }
 chrono = "0.4"
 clap = "3.0.0-beta.2"
+ed25519-dalek = "1.0"
 log4rs = "1.0"
 futures = "0.3.15"
 hex = "0.4.3"
@@ -39,3 +35,14 @@ tokio = { version = "1.5.0", features = ["full"] }
 uuid = { version = "0.8", features = ["v4", "serde"] }
 warp = {version = "0.3.1", features = ["compression"] }
 warp-json-rpc = "0.3.0"
+
+tiny-adnl = { git = "https://github.com/broxus/tiny-adnl.git" }
+ton_block = { git = "git://github.com/tonlabs/ton-labs-block.git" }
+ton_types = { git = "git://github.com/tonlabs/ton-labs-types.git" }
+
+[dependencies.ton_api]
+git = "https://github.com/broxus/ton-labs-tl.git"
+branch = "original"
+package = "ton_api"
+default-features = false
+features = ["lite_api"]
