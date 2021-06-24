@@ -31,7 +31,7 @@ impl TryFrom<AdnlConfig> for AdnlTcpClientConfig {
 impl AdnlConfig {
     pub fn default_mainnet_config() -> AdnlConfig {
         AdnlConfig {
-            server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3031).into(),
+            server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3031),
             server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=".to_owned(),
             socket_timeout_ms: 20000,
         }
@@ -39,7 +39,7 @@ impl AdnlConfig {
 
     pub fn default_testnet_config() -> AdnlConfig {
         AdnlConfig {
-            server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3032).into(),
+            server_address: SocketAddrV4::new(Ipv4Addr::new(54, 158, 97, 195), 3032),
             server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc=".to_owned(),
             socket_timeout_ms: 20000,
         }

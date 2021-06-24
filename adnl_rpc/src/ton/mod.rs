@@ -37,23 +37,37 @@ pub struct State {
     pool: Pool<AdnlManageConnection>,
     last_block: LastBlock,
     address_subscriptions: RwLock<AddressSubscriptionsMap>,
+    max_unreliability: usize,
+    unreliability: Arc<AtomicUsize>,
 }
 
 impl State {
     pub async fn new(config: Config) -> Result<Self> {
+        let max_unreliability = config.max_unreliability;
+        let unreliability = Arc::new(AtomicUsize::new(0));
+
         let builder = Pool::builder();
         let pool = builder
             .max_size(config.max_connection_count)
             .min_idle(config.min_idle_connection_count)
             .max_lifetime(None)
-            .build(AdnlManageConnection::new(config.adnl_config.try_into()?))
+            .build(AdnlManageConnection::new(
+                config.adnl_config.try_into()?,
+                unreliability.clone(),
+            ))
             .await?;
 
         Ok(Self {
             pool,
             last_block: LastBlock::new(&config.last_block_cache_duration),
             address_subscriptions: Default::default(),
+            max_unreliability,
+            unreliability,
         })
+    }
+
+    pub fn is_ok(&self) -> bool {
+        self.unreliability.load(Ordering::Acquire) <= self.max_unreliability
     }
 
     pub fn start_masterchain_cache_updater(self: &Arc<Self>) {

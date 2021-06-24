@@ -1888,7 +1888,7 @@ dependencies = [
 [[package]]
 name = "tiny-adnl"
 version = "0.1.0"
-source = "git+https://github.com/broxus/tiny-adnl.git#c9945c938913f00d7550c8f514f5e11aac605be8"
+source = "git+https://github.com/broxus/tiny-adnl.git#57ae6c2bad68466a9195a1c3867335a12ff4aff3"
 dependencies = [
  "aes",
  "anyhow",

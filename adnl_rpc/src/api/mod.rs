@@ -74,7 +74,7 @@ pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         Ok::<_, Rejection>(error_response)
     });
 
-    healthcheck()
+    healthcheck(state.clone())
         .or(send_message(state.clone()))
         .or(send_message(state.clone()))
         .or(get_contract_state(state.clone()))
@@ -100,10 +100,20 @@ fn wrap(
     .unwrap())
 }
 
-pub fn healthcheck() -> BoxedFilter<(impl warp::Reply,)> {
+pub fn healthcheck(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
     warp::path::end()
+        .map(move || state.clone())
         .and(warp::get())
-        .map(|| warp::reply::with_status("", http::StatusCode::OK))
+        .map(|state: Arc<State>| {
+            warp::reply::with_status(
+                "",
+                if state.is_ok() {
+                    http::StatusCode::OK
+                } else {
+                    http::StatusCode::SERVICE_UNAVAILABLE
+                },
+            )
+        })
         .boxed()
 }
 
