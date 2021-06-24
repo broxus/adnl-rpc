@@ -20,8 +20,8 @@ impl AdnlManageConnection {
         }
     }
 
-    fn bump_unreliability(&self) {
-        self.unreliability.fetch_add(1, Ordering::Release);
+    fn bump_unreliability(&self, points: usize) {
+        self.unreliability.fetch_add(points, Ordering::Release);
     }
 
     fn reset_unreliability(&self) {
@@ -43,7 +43,7 @@ impl bb8::ManageConnection for AdnlManageConnection {
                 Ok(connection)
             }
             Err(e) => {
-                self.bump_unreliability();
+                self.bump_unreliability(5);
                 log::debug!("Failed to establish adnl connection");
                 Err(e)
             }
@@ -59,7 +59,7 @@ impl bb8::ManageConnection for AdnlManageConnection {
                 Ok(())
             }
             Err(e) => {
-                self.bump_unreliability();
+                self.bump_unreliability(1);
                 log::trace!("Connection is invalid");
                 Err(e)
             }
