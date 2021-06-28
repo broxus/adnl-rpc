@@ -21,6 +21,7 @@ adnl_config:
   server_key: "uNRRL+6enQjuiZ/s6Z+vO7yxUUR7uxdfzIy+RxkECrc="
   socket_timeout_ms: 5000
 max_unreliability: 30
+max_time_diff: 120
 last_block_cache_duration: 1s
 max_connection_count: 100
 min_idle_connection_count: 5

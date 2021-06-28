@@ -86,6 +86,7 @@ pub fn rpc(state: Arc<State>) -> BoxedFilter<(impl warp::Reply,)> {
         .boxed()
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn wrap(
     res: warp_json_rpc::Builder,
     result: QueryResult<impl serde::Serialize + 'static>,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryInto;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -39,12 +39,16 @@ pub struct State {
     address_subscriptions: RwLock<AddressSubscriptionsMap>,
     max_unreliability: usize,
     unreliability: Arc<AtomicUsize>,
+    max_time_diff: u32,
+    time_diff: AtomicU32,
 }
 
 impl State {
     pub async fn new(config: Config) -> Result<Self> {
         let max_unreliability = config.max_unreliability;
         let unreliability = Arc::new(AtomicUsize::new(0));
+
+        let max_time_diff = config.max_time_diff;
 
         let builder = Pool::builder();
         let pool = builder
@@ -63,11 +67,14 @@ impl State {
             address_subscriptions: Default::default(),
             max_unreliability,
             unreliability,
+            max_time_diff,
+            time_diff: AtomicU32::new(0),
         })
     }
 
     pub fn is_ok(&self) -> bool {
         self.unreliability.load(Ordering::Acquire) <= self.max_unreliability
+            && self.time_diff.load(Ordering::Acquire) <= self.max_time_diff
     }
 
     pub fn start_masterchain_cache_updater(self: &Arc<Self>) {
@@ -255,6 +262,12 @@ impl State {
             .info
             .read_struct()
             .map_err(|_| QueryError::InvalidBlock)?;
+
+        let time_diff = std::cmp::max(
+            chrono::Utc::now().timestamp() - info.gen_utime().0 as i64,
+            0,
+        );
+        self.time_diff.store(time_diff as u32, Ordering::Release);
 
         if info.key_block() {
             Ok(RawBlock { block })

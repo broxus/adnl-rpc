@@ -19,6 +19,8 @@ pub struct Config {
 
     pub max_unreliability: usize,
 
+    pub max_time_diff: u32,
+
     pub max_connection_count: u32,
 
     pub min_idle_connection_count: Option<u32>,
@@ -37,6 +39,7 @@ impl Default for Config {
             logger_settings: default_logger_settings(),
             adnl_config: AdnlConfig::default_mainnet_config(),
             max_unreliability: 30,
+            max_time_diff: 120,
             max_connection_count: 100,
             min_idle_connection_count: Some(5),
             last_block_cache_duration: Duration::from_secs(1),
