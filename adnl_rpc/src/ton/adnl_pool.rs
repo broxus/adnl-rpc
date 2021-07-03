@@ -1,5 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Error;
 use async_trait::async_trait;
@@ -52,7 +53,7 @@ impl bb8::ManageConnection for AdnlManageConnection {
 
     async fn is_valid(&self, conn: &mut PooledConnection<'_, Self>) -> Result<(), Self::Error> {
         log::trace!("Check if connection is valid...");
-        match conn.deref_mut().ping(10).await {
+        match conn.deref_mut().ping(Duration::from_secs(10)).await {
             Ok(_) => {
                 self.reset_unreliability();
                 log::trace!("Connection is valid");
@@ -66,7 +67,7 @@ impl bb8::ManageConnection for AdnlManageConnection {
         }
     }
 
-    fn has_broken(&self, _: &mut Self::Connection) -> bool {
-        false
+    fn has_broken(&self, connection: &mut Self::Connection) -> bool {
+        connection.has_broken.load(Ordering::Acquire)
     }
 }

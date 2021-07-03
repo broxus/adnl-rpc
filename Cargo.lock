@@ -803,9 +803,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.18"
+version = "0.1.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "322f4de77956e22ed0e5032c359a0f1273f1f7f0d79bfa3b8ffbc730d7fbcc5c"
+checksum = "62b467343b94ba476dcb2500d242dadbb39557df889310ac77c5d99100aaac33"
 dependencies = [
  "libc",
 ]
@@ -1888,7 +1888,7 @@ dependencies = [
 [[package]]
 name = "tiny-adnl"
 version = "0.1.0"
-source = "git+https://github.com/broxus/tiny-adnl.git#57ae6c2bad68466a9195a1c3867335a12ff4aff3"
+source = "git+https://github.com/broxus/tiny-adnl.git#fda6677374134c243210766a1dfcdb184f772c9b"
 dependencies = [
  "aes",
  "anyhow",
@@ -2039,8 +2039,8 @@ dependencies = [
 
 [[package]]
 name = "ton_block"
-version = "1.0.73"
-source = "git+git://github.com/tonlabs/ton-labs-block.git#a90e47fd43dd26d0d0f830893766de6ea886a2b3"
+version = "1.1.28"
+source = "git+git://github.com/tonlabs/ton-labs-block.git#9a29b4bf06f59570305c42dc15a03df654373365"
 dependencies = [
  "base64 0.10.1",
  "clear_on_drop",
@@ -2072,8 +2072,8 @@ dependencies = [
 
 [[package]]
 name = "ton_types"
-version = "1.2.12"
-source = "git+git://github.com/tonlabs/ton-labs-types.git#4e6585715a10d2c1b97519f9756d17bf392fc651"
+version = "1.3.33"
+source = "git+git://github.com/tonlabs/ton-labs-types.git#709120f8ccec23ad7c1085a9e5fc9f9f3dc7620c"
 dependencies = [
  "base64 0.11.0",
  "crc",
